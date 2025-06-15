@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Cobrinha</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-image: url('/assets/background.png');
+            background-size: cover;
+            background-position: center;
+            font-family: Arial, sans-serif;
+            color: white;
+            text-align: center;
+            padding-top: 30px;
+        }
+
+        .canvas {
+            background-color: rgba(0, 0, 0, 0.7);
+            display: block;
+            margin: 0 auto;
+            border: 5px solid rgb(221, 125, 0);
+        }
+
+        #painel-controle {
+            margin-top: 25px;
+        }
+
+        select, button {
+            padding: 5px;
+            font-size: 16px;
+            margin: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Jogo da Cobrinha</h1>
+    <canvas class="canvas" id="tela" width="400" height="400">Seu navegador não suporta Canvas ou HTML5.</canvas>
+
+    <div id="painel-controle">
+        <label for="dificuldade">Dificuldade:</label>
+        <select id="dificuldade">
+            <option value="facil">Fácil</option>
+            <option value="medio" selected>Médio</option>
+            <option value="dificil">Difícil</option>
+        </select>
+        <button onclick="iniciarJogo()">Iniciar Jogo</button>
+        <p>Pontuação: <span id="pontuacao">0</span></p>
+    </div>
+
+    <!-- Sons -->
+    <audio id="somComer" src="/assets/comida.mp3"></audio>
+    <audio id="somFim" src="/assets/fim.mp3"></audio>
+    <audio id="musicaFundo" src="/assets/musicafundo.mp3" loop></audio>
+
+    <script>
+        const tela = document.getElementById("tela");
+        const contexto = tela.getContext("2d");
+        const tamanhoBloco = 20;
+        const totalBlocos = tela.width / tamanhoBloco;
+
+        const somComer = document.getElementById("somComer");
+        const somFim = document.getElementById("somFim");
+        const musicaFundo = document.getElementById("musicaFundo");
+
+        let cobrinha = [{ x: 5, y: 5 }];
+        let direcao = "direita";
+        let intervaloJogo;
+        let comida = gerarComida();
+        let pontuacao = 0;
+
+        function desenharCenario() {
+            contexto.fillStyle = "rgba(0, 0, 0, 0.7)";
+            contexto.fillRect(0, 0, tela.width, tela.height);
+        }
+
+        function desenharCobrinha() {
+            for (let parte of cobrinha) {
+                contexto.fillStyle = "blue";
+                contexto.fillRect(parte.x * tamanhoBloco, parte.y * tamanhoBloco, tamanhoBloco, tamanhoBloco);
+            }
+        }
+
+        function desenharComida() {
+            contexto.fillStyle = "yellow";
+            contexto.fillRect(comida.x * tamanhoBloco, comida.y * tamanhoBloco, tamanhoBloco, tamanhoBloco);
+        }
+
+        function moverCobrinha() {
+            let cabeca = { ...cobrinha[0] };
+
+            if (direcao === "direita") cabeca.x++;
+            if (direcao === "esquerda") cabeca.x--;
+            if (direcao === "cima") cabeca.y--;
+            if (direcao === "baixo") cabeca.y++;
+
+            cobrinha.unshift(cabeca);
+            cobrinha.pop();
+        }
+
+        function verificarComida() {
+            if (cobrinha[0].x === comida.x && cobrinha[0].y === comida.y) {
+                comida = gerarComida();
+                cobrinha.push({});
+                pontuacao++;
+                atualizarPontuacao();
+                somComer.play();
+            }
+        }
+
+        function verificarColisoes() {
+            let cabeca = cobrinha[0];
+
+            if (
+                cabeca.x < 0 || cabeca.x >= totalBlocos ||
+                cabeca.y < 0 || cabeca.y >= totalBlocos
+            ) {
+                gameOver();
+            }
+
+            for (let i = 1; i < cobrinha.length; i++) {
+                if (cabeca.x === cobrinha[i].x && cabeca.y === cobrinha[i].y) {
+                    gameOver();
+                }
+            }
+        }
+
+        function atualizarPontuacao() {
+            document.getElementById("pontuacao").innerText = pontuacao;
+        }
+
+        function gerarComida() {
+            return {
+                x: Math.floor(Math.random() * totalBlocos),
+                y: Math.floor(Math.random() * totalBlocos)
+            };
+        }
+
+        function iniciarJogo() {
+            cobrinha = [{ x: 5, y: 5 }];
+            direcao = "direita";
+            pontuacao = 0;
+            atualizarPontuacao();
+            comida = gerarComida();
+
+            let dificuldade = document.getElementById("dificuldade").value;
+            let velocidade;
+
+            switch (dificuldade) {
+                case "facil": velocidade = 200; break;
+                case "medio": velocidade = 120; break;
+                case "dificil": velocidade = 70; break;
+            }
+
+            clearInterval(intervaloJogo);
+            intervaloJogo = setInterval(() => {
+                desenharCenario();
+                moverCobrinha();
+                desenharCobrinha();
+                desenharComida();
+                verificarComida();
+                verificarColisoes();
+            }, velocidade);
+
+            musicaFundo.currentTime = 0;
+            musicaFundo.play();
+        }
+
+        document.addEventListener("keydown", function (evento) {
+            if (evento.key === "ArrowUp" && direcao !== "baixo") direcao = "cima";
+            if (evento.key === "ArrowDown" && direcao !== "cima") direcao = "baixo";
+            if (evento.key === "ArrowLeft" && direcao !== "direita") direcao = "esquerda";
+            if (evento.key === "ArrowRight" && direcao !== "esquerda") direcao = "direita";
+        });
+
+        function gameOver() {
+            clearInterval(intervaloJogo);
+            somFim.play();
+            musicaFundo.pause();
+            setTimeout(() => {
+                alert("Fim de jogo! Sua pontuação: " + pontuacao);
+            }, 100);
+        }
+    </script>
+</body>
+
+</html>
